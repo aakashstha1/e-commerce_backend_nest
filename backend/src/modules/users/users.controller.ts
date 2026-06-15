@@ -1,6 +1,6 @@
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
-// import { UpdateUserDto } from './dto/update-user.dto';
+// import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import {
   Body,
   Controller,
@@ -8,25 +8,26 @@ import {
   NotFoundException,
   Param,
   Patch,
-  Post,
 } from '@nestjs/common';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { ParseObjectIdPipe } from 'src/common/pipes/parse-object-id.pipe';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
-  createUser(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.createUser(createUserDto);
-  }
+  // Create User
+  // @Post()
+  // createUser(@Body() createUserDto: CreateUserDto) {
+  //   return this.usersService.createUser(createUserDto);
+  // }
 
+  // Get Users
   @Get()
   getUsers() {
     return this.usersService.getUsers();
   }
 
+  // Get User By Id
   @Get(':id')
   async getUserById(@Param('id', ParseObjectIdPipe) id: string) {
     const user = await this.usersService.getUsersById(id);
@@ -36,6 +37,7 @@ export class UsersController {
     return user;
   }
 
+  // Update User
   @Patch(':id')
   update(
     @Param('id', ParseObjectIdPipe) id: string,
