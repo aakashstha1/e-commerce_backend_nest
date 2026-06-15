@@ -1,26 +1,22 @@
 import { Injectable } from '@nestjs/common';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { RegisterDto } from './dto/register.dto';
+import { InjectModel } from '@nestjs/mongoose';
+import { User, UserDocument } from 'src/schemas/user.schema';
+import { Model } from 'mongoose';
 
 @Injectable()
 export class AuthService {
-  create(createAuthDto: CreateAuthDto) {
-    return 'This action adds a new auth';
-  }
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+  signUp(registerDto: RegisterDto) {
+    const { name, email, password } = registerDto;
 
-  findAll() {
-    return `This action returns all auth`;
-  }
+    const existingUser = this.userModel.findOne({ email });
 
-  findOne(id: number) {
-    return `This action returns a #${id} auth`;
-  }
+    if (existingUser) {
+      throw new Error('User already exists');
+    }
 
-  update(id: number, updateAuthDto: UpdateAuthDto) {
-    return `This action updates a #${id} auth`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} auth`;
+    const user = new this.userModel({ name, email, password });
+    return user.save();
   }
 }

@@ -25,10 +25,6 @@ export class CreateUserDto {
   })
   phone!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  address!: string;
-
   @IsOptional()
   @IsString()
   avatarUrl?: string;

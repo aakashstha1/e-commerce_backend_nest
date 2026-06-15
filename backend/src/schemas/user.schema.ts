@@ -16,9 +16,6 @@ export class User {
   @Prop({ required: true, unique: true })
   phone!: string;
 
-  @Prop({ required: true })
-  address!: string;
-
   @Prop({ default: 'user' })
   role!: string;
 
@@ -29,4 +26,4 @@ export class User {
   isVerified!: boolean;
 }
 
-export const UserSchema = SchemaFactory.createForClass(User);
+export const UserSchema = SchemaFactory.createForClass(User); //converts a TypeScript class (User) into a Mongoose schema.
