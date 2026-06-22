@@ -1,22 +1,32 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from '../users/schema/user.schema';
+import { UsersService } from '../users/users.service';
+import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
-  async signUp(registerDto: RegisterDto) {
-    const { name, email, password } = registerDto;
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly configService: ConfigService,
+  ) {}
 
-    const existingUser = await this.userModel.findOne({ email });
+  async signUp(registerDto: RegisterDto) {
+    const { email, password } = registerDto;
+
+    const existingUser = await this.usersService.findByEmail(email);
 
     if (existingUser) {
-      throw new Error('User already exists');
+      throw new ConflictException('Email already registered');
     }
 
-    const user = new this.userModel({ name, email, password });
-    return user.save();
+    const pepper = this.configService.get<string>('security.pepper');
+
+    const hashedPassword = await bcrypt.hash(password + pepper, 10);
+
+    return this.usersService.createUser({
+      ...registerDto,
+      password: hashedPassword,
+    });
   }
 }

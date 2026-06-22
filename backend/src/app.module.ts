@@ -7,12 +7,13 @@ import { AuthModule } from './modules/auth/auth.module';
 import { DBModule } from './database/db.module';
 import { ConfigModule } from '@nestjs/config';
 import dbConfig from './config/db-config';
+import hashingConfig from './config/hashing-config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [dbConfig],
+      load: [dbConfig, hashingConfig],
       envFilePath: '.env',
     }),
     DBModule,
