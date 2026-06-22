@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { ConflictException, Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto';
 import { UsersService } from '../users/users.service';
@@ -22,11 +23,19 @@ export class AuthService {
 
     const pepper = this.configService.get<string>('security.pepper');
 
+    if (!pepper) {
+      throw new Error('PEPPER is not defined');
+    }
+
     const hashedPassword = await bcrypt.hash(password + pepper, 10);
 
-    return this.usersService.createUser({
+    const user = await this.usersService.createUser({
       ...registerDto,
       password: hashedPassword,
     });
+
+    const { password: pw, ...rest } = user.toObject();
+
+    return rest;
   }
 }
