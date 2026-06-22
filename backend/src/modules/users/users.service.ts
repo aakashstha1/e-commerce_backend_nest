@@ -27,7 +27,7 @@ export class UsersService {
 
   // get user by email
   findByEmail(email: string) {
-    return this.userModel.findOne({ email });
+    return this.userModel.findOne({ email }).select('+password').exec();
   }
 
   // update user
