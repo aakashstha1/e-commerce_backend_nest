@@ -2,13 +2,20 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
-import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './modules/users/users.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DBModule } from './database/db.module';
+import { ConfigModule } from '@nestjs/config';
+import dbConfig from './config/db-config';
 
 @Module({
   imports: [
-    MongooseModule.forRoot('mongodb://127.0.0.1/e-commerce'), // Connecting to MongoDB
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [dbConfig],
+      envFilePath: '.env',
+    }),
+    DBModule,
     UsersModule,
     AuthModule,
   ],
