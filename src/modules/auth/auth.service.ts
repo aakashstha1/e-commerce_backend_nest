@@ -11,6 +11,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { UsersService } from '../users/users.service';
 import { TokensDto } from './dto/tokens.dto';
+import { SignOptions } from 'jsonwebtoken';
 
 @Injectable()
 export class AuthService {
@@ -45,16 +46,27 @@ export class AuthService {
   ): Promise<TokensDto> {
     const payload = { sub: userId, email, role };
 
-    const [accessToken, refreshToken] = await Promise.all([
+    const accessSecret =
+      this.configService.getOrThrow<string>('jwt.accessSecret');
+    const refreshSecret =
+      this.configService.getOrThrow<string>('jwt.refreshSecret');
+
+    const accessExpiresIn = this.configService.getOrThrow<
+      SignOptions['expiresIn']
+    >('jwt.accessExpiresIn');
+
+    const refreshExpiresIn = this.configService.getOrThrow<
+      SignOptions['expiresIn']
+    >('jwt.refreshExpiresIn');
+
+    const [accessToken, refreshToken]: [string, string] = await Promise.all([
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('jwt.accessSecret'),
-        expiresIn: this.configService.get<string>('jwt.accessExpiresIn') as any,
+        secret: accessSecret,
+        expiresIn: accessExpiresIn,
       }),
       this.jwtService.signAsync(payload, {
-        secret: this.configService.get<string>('jwt.refreshSecret'),
-        expiresIn: this.configService.get<string>(
-          'jwt.refreshExpiresIn',
-        ) as any,
+        secret: refreshSecret,
+        expiresIn: refreshExpiresIn,
       }),
     ]);
 

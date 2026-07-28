@@ -1,43 +1,58 @@
 import { UsersService } from './users.service';
-// import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import {
   Body,
   Controller,
+  Delete,
   Get,
-  NotFoundException,
   Param,
   Patch,
+  UseGuards,
 } from '@nestjs/common';
 import { ParseObjectIdPipe } from 'src/common/pipes/parse-object-id.pipe';
+import { Roles } from 'src/common/decorators/roles.decorator';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { CurrentUser } from 'src/common/decorators/current-user.decorator';
+import { UserRole } from './enums/user-role-enum';
 
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Create User
-  // @Post()
-  // createUser(@Body() createUserDto: CreateUserDto) {
-  //   return this.usersService.createUser(createUserDto);
-  // }
-
-  // Get Users
+  // Get all users - admin only
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get()
   getUsers() {
     return this.usersService.getUsers();
   }
 
-  // Get User By Id
-  @Get(':id')
-  async getUserById(@Param('id', ParseObjectIdPipe) id: string) {
-    const user = await this.usersService.getUsersById(id);
-
-    if (!user) throw new NotFoundException('User not found');
-
-    return user;
+  // Get my own profile
+  @Get('me')
+  getMe(@CurrentUser('userId') userId: string) {
+    return this.usersService.getUsersById(userId);
   }
 
-  // Update User
+  // Update my own profile
+  @Patch('me')
+  updateMe(
+    @CurrentUser('userId') userId: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateUser(userId, updateUserDto);
+  }
+
+  // Get user by id - admin only
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get(':id')
+  getUserById(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.usersService.getUsersById(id);
+  }
+
+  // Update user by id - admin only
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Patch(':id')
   update(
     @Param('id', ParseObjectIdPipe) id: string,
@@ -46,8 +61,11 @@ export class UsersController {
     return this.usersService.updateUser(id, updateUserDto);
   }
 
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.usersService.remove(+id);
-  // }
+  // Delete user - admin only
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Delete(':id')
+  remove(@Param('id', ParseObjectIdPipe) id: string) {
+    return this.usersService.deleteUser(id);
+  }
 }
