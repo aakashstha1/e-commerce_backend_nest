@@ -8,12 +8,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import dbConfig from './config/db-config';
 import hashingConfig from './config/hashing-config';
 import { MongooseModule } from '@nestjs/mongoose';
+import jwtConfig from './config/jwt-config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [dbConfig, hashingConfig],
+      load: [dbConfig, hashingConfig, jwtConfig],
       envFilePath: '.env',
     }),
     // DB connection

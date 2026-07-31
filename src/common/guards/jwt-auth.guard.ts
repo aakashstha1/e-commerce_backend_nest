@@ -4,8 +4,8 @@ import { AuthGuard } from '@nestjs/passport';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 /**
- * Global auth guard (registered in AppModule as APP_GUARD).
- * Every route requires a valid JWT access token unless marked @Public().
+ * JWT Authentication Guard
+ * Checks if the user has a valid access token.
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -14,13 +14,16 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   }
 
   canActivate(context: ExecutionContext) {
+    // Check if the route is marked with @Public()
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
+      context.getHandler(), // current route handler
+      context.getClass(), // current controller
     ]);
 
+    // Skip authentication for public routes
     if (isPublic) return true;
 
+    // For protected routes, validate JWT token
     return super.canActivate(context);
   }
 }

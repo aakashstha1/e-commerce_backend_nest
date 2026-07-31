@@ -2,8 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 /**
- * Used solely on POST /auth/refresh. Validates the refresh token
- * (sent in the Authorization header) via JwtRefreshStrategy.
+ * Refresh Token Guard
+ * Checks if the refresh token is valid.
+ * Used only for the refresh endpoint.
  */
 @Injectable()
 export class RefreshJwtAuthGuard extends AuthGuard('jwt-refresh') {}
