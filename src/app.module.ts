@@ -15,6 +15,7 @@ import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import appConfig from './config/app-config';
+import { ProductModule } from './modules/product/product.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import appConfig from './config/app-config';
     }),
     UsersModule,
     AuthModule,
+    ProductModule,
   ],
   controllers: [AppController],
   providers: [
