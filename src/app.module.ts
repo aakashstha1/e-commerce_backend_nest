@@ -14,12 +14,13 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import appConfig from './config/app-config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [dbConfig, hashingConfig, jwtConfig],
+      load: [dbConfig, hashingConfig, jwtConfig, appConfig],
       envFilePath: '.env',
     }),
     // DB connection
