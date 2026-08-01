@@ -16,6 +16,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import appConfig from './config/app-config';
 import { ProductModule } from './modules/product/product.module';
+import { CategoryModule } from './modules/category/category.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ProductModule } from './modules/product/product.module';
     UsersModule,
     AuthModule,
     ProductModule,
+    CategoryModule,
   ],
   controllers: [AppController],
   providers: [
