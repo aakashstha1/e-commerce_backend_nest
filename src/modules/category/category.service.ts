@@ -9,7 +9,7 @@ import { Model } from 'mongoose';
 import { Category, CategoryDocument } from './schema/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-// import { Product, ProductDocument } from '../product/schema/product.schema';
+import { Product, ProductDocument } from '../product/schema/product.schema';
 
 const slugify = (text: string) =>
   text
@@ -24,7 +24,7 @@ const slugify = (text: string) =>
 export class CategoryService {
   constructor(
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
-    // @InjectModel(Product.name) private productModel: Model<ProductDocument>,
+    @InjectModel(Product.name) private productModel: Model<ProductDocument>,
   ) {}
 
   async create(dto: CreateCategoryDto) {
@@ -113,12 +113,12 @@ export class CategoryService {
       );
     }
 
-    // const hasProducts = await this.productModel.exists({ categoryId: id });
-    // if (hasProducts) {
-    //   throw new BadRequestException(
-    //     'Cannot delete a category that still has products assigned to it. Reassign or remove them first.',
-    //   );
-    // }
+    const hasProducts = await this.productModel.exists({ categoryId: id });
+    if (hasProducts) {
+      throw new BadRequestException(
+        'Cannot delete a category that still has products assigned to it. Reassign or remove them first.',
+      );
+    }
 
     const category = await this.categoryModel.findByIdAndDelete(id).exec();
     if (!category) throw new NotFoundException('Category not found');
