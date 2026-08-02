@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Cart, CartDocument } from './schema/cart.schema';
 import { CartItem, CartItemDocument } from './schema/cart-item.schema';
 import { ProductService } from '../product/product.service';
@@ -112,7 +112,13 @@ export class CartService {
   }
 
   /** Used internally by OrderService during checkout. */
+  // async getCartItemsForCheckout(cartId: string) {
+  //   console.log(cartId);
+  //   return this.cartItemModel.find({ cartId }).exec();
+  // }
   async getCartItemsForCheckout(cartId: string) {
-    return this.cartItemModel.find({ cartId }).exec();
+    return this.cartItemModel
+      .find({ cartId: new Types.ObjectId(cartId) })
+      .exec();
   }
 }
