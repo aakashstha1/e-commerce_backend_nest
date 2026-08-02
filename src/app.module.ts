@@ -17,12 +17,13 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import appConfig from './config/app-config';
 import { ProductModule } from './modules/product/product.module';
 import { CategoryModule } from './modules/category/category.module';
+import cloudinaryConfig from './config/cloudinary-config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [dbConfig, hashingConfig, jwtConfig, appConfig],
+      load: [dbConfig, hashingConfig, jwtConfig, appConfig, cloudinaryConfig],
       envFilePath: '.env',
     }),
     // DB connection

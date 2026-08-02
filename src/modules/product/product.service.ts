@@ -14,6 +14,7 @@ import {
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { QueryProductDto } from './dto/query-product.dto';
+import { CloudinaryService } from 'src/common/cloudinary/cloudinary.service';
 
 const slugify = (text: string) =>
   text
@@ -29,10 +30,12 @@ export class ProductService {
     @InjectModel(Product.name) private productModel: Model<ProductDocument>,
     @InjectModel(ProductImage.name)
     private productImageModel: Model<ProductImageDocument>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
+
   // Creates a new product and its associated images in the database. Validates uniqueness of slug and SKU.
-  async create(dto: CreateProductDto) {
-    const { images, ...productData } = dto;
+
+  async create(dto: CreateProductDto, thumbnailBuffer?: Buffer) {
     const slug = slugify(dto.slug ?? dto.name);
 
     const existingSlug = await this.productModel.findOne({ slug }).exec();
@@ -45,15 +48,47 @@ export class ProductService {
     if (existingSku)
       throw new ConflictException('A product with this SKU already exists');
 
-    const product = await this.productModel.create({ ...productData, slug });
+    let thumbnail: string | undefined;
+    let thumbnailPublicId: string | undefined;
 
-    if (images?.length) {
-      await this.productImageModel.insertMany(
-        images.map((img) => ({ ...img, productId: product._id })),
+    if (thumbnailBuffer) {
+      const uploadResult = await this.cloudinaryService.uploadImage(
+        thumbnailBuffer,
+        'products/thumbnails',
       );
+      thumbnail = uploadResult.secure_url;
+      thumbnailPublicId = uploadResult.public_id;
     }
 
+    const product = await this.productModel.create({
+      ...dto,
+      slug,
+      thumbnail,
+      thumbnailPublicId,
+    });
+
     return this.findOne(product._id.toString());
+  }
+
+  async updateThumbnail(productId: string, thumbnailBuffer: Buffer) {
+    const product = await this.productModel.findById(productId).exec();
+    if (!product) throw new NotFoundException('Product not found');
+
+    // Delete the old thumbnail from Cloudinary before uploading the new one.
+    if (product.thumbnailPublicId) {
+      await this.cloudinaryService.deleteImage(product.thumbnailPublicId);
+    }
+
+    const uploadResult = await this.cloudinaryService.uploadImage(
+      thumbnailBuffer,
+      'products/thumbnails',
+    );
+
+    product.thumbnail = uploadResult.secure_url;
+    product.thumbnailPublicId = uploadResult.public_id;
+    await product.save();
+
+    return product;
   }
 
   // Retrieves a paginated list of products based on the provided query parameters.
@@ -129,7 +164,6 @@ export class ProductService {
 
   // Updates an existing product and its associated images in the database.
   async update(id: string, dto: UpdateProductDto) {
-    const { images, ...productData } = dto;
     const product = await this.productModel.findById(id).exec();
     if (!product) throw new NotFoundException('Product not found');
 
@@ -143,17 +177,8 @@ export class ProductService {
       product.slug = slug;
     }
 
-    Object.assign(product, productData);
+    Object.assign(product, dto);
     await product.save();
-
-    if (images) {
-      await this.productImageModel.deleteMany({ productId: id });
-      if (images.length) {
-        await this.productImageModel.insertMany(
-          images.map((img) => ({ ...img, productId: id })),
-        );
-      }
-    }
 
     return this.findOne(id);
   }
@@ -167,6 +192,63 @@ export class ProductService {
     );
     if (!product) throw new NotFoundException('Product not found');
     return { message: 'Product deactivated successfully' };
+  }
+
+  /** Uploads a new image for a product and stores it as a ProductImage document. */
+  async addImage(productId: string, fileBuffer: Buffer, sortOrder = 0) {
+    const product = await this.productModel.findById(productId).exec();
+    if (!product) throw new NotFoundException('Product not found');
+
+    const uploadResult = await this.cloudinaryService.uploadImage(fileBuffer);
+
+    const image = await this.productImageModel.create({
+      productId,
+      imageUrl: uploadResult.secure_url,
+      publicId: uploadResult.public_id,
+      sortOrder,
+    });
+
+    return image;
+  }
+
+  /** Deletes a product image from both Cloudinary and the database. */
+  async removeImage(productId: string, imageId: string) {
+    const image = await this.productImageModel
+      .findOne({ _id: imageId, productId })
+      .exec();
+    if (!image) throw new NotFoundException('Image not found for this product');
+
+    await this.cloudinaryService.deleteImage(image.publicId);
+    await image.deleteOne();
+
+    return { message: 'Image deleted successfully' };
+  }
+
+  /** Replaces an existing image: deletes the old Cloudinary asset, uploads the new one in its place. */
+  async replaceImage(productId: string, imageId: string, fileBuffer: Buffer) {
+    const image = await this.productImageModel
+      .findOne({ _id: imageId, productId })
+      .exec();
+    if (!image) throw new NotFoundException('Image not found for this product');
+
+    // Delete the old file from Cloudinary before uploading the new one.
+    await this.cloudinaryService.deleteImage(image.publicId);
+
+    const uploadResult = await this.cloudinaryService.uploadImage(fileBuffer);
+    image.imageUrl = uploadResult.secure_url;
+    image.publicId = uploadResult.public_id;
+    await image.save();
+
+    return image;
+  }
+
+  /** Deletes every image for a product from Cloudinary — used before a hard delete. */
+  async removeAllImages(productId: string) {
+    const images = await this.productImageModel.find({ productId }).exec();
+    await Promise.all(
+      images.map((img) => this.cloudinaryService.deleteImage(img.publicId)),
+    );
+    await this.productImageModel.deleteMany({ productId });
   }
 
   /** Atomically deducts stock; throws if insufficient. Used by OrderService during checkout. */

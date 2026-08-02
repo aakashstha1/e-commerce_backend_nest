@@ -39,7 +39,10 @@ export class Product {
   stockQuantity!: number;
 
   @Prop()
-  thumbnailUrl?: string;
+  thumbnail?: string;
+
+  @Prop()
+  thumbnailPublicId?: string;
 
   @Prop({ default: true })
   isActive!: boolean;

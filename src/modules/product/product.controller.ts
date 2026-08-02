@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,7 +8,9 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -19,6 +22,8 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { UserRole } from '../users/enums/user-role-enum';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @Controller('products')
 export class ProductController {
@@ -36,20 +41,47 @@ export class ProductController {
   findBySlug(@Param('slug') slug: string) {
     return this.productService.findBySlug(slug);
   }
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post()
+  @UseInterceptors(
+    FileInterceptor('thumbnail', {
+      storage: memoryStorage(),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      fileFilter: (req, file, callback) => {
+        if (!file.mimetype.match(/^image\/(jpeg|png|webp|gif)$/)) {
+          return callback(
+            new BadRequestException('Only image files are allowed'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  create(
+    @Body() dto: CreateProductDto,
+    @UploadedFile() thumbnail?: Express.Multer.File,
+  ) {
+    return this.productService.create(dto, thumbnail?.buffer);
+  }
 
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch(':id/thumbnail')
+  @UseInterceptors(FileInterceptor('thumbnail', { storage: memoryStorage() }))
+  updateThumbnail(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @UploadedFile() thumbnail: Express.Multer.File,
+  ) {
+    if (!thumbnail) throw new BadRequestException('No file uploaded');
+    return this.productService.updateThumbnail(id, thumbnail.buffer);
+  }
   // Query the database for a product by ID
   @Public()
   @Get(':id')
   findOne(@Param('id', ParseObjectIdPipe) id: string) {
     return this.productService.findOne(id);
-  }
-
-  // Create a new product in the database
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Post()
-  create(@Body() dto: CreateProductDto) {
-    return this.productService.create(dto);
   }
 
   // Update an existing product in the database

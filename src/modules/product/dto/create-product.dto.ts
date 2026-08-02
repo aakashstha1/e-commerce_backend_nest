@@ -61,10 +61,6 @@ export class CreateProductDto {
   stockQuantity!: number;
 
   @IsOptional()
-  @IsString()
-  thumbnailUrl?: string;
-
-  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProductImageInputDto)

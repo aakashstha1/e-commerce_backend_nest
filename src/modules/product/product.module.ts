@@ -7,6 +7,7 @@ import {
   ProductImageSchema,
 } from './schema/product-image.schema';
 import { MongooseModule } from '@nestjs/mongoose';
+import { CloudinaryModule } from 'src/common/cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { MongooseModule } from '@nestjs/mongoose';
       { name: Product.name, schema: ProductSchema },
       { name: ProductImage.name, schema: ProductImageSchema },
     ]),
+    CloudinaryModule,
   ],
   controllers: [ProductController],
   providers: [ProductService],

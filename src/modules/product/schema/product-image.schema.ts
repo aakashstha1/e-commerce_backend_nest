@@ -11,6 +11,9 @@ export class ProductImage {
   @Prop({ required: true })
   imageUrl!: string;
 
+  @Prop({ required: true })
+  publicId!: string;
+
   @Prop({ default: 0 })
   sortOrder!: number;
 }
