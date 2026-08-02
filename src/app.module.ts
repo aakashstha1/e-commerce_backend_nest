@@ -18,6 +18,7 @@ import appConfig from './config/app-config';
 import { ProductModule } from './modules/product/product.module';
 import { CategoryModule } from './modules/category/category.module';
 import cloudinaryConfig from './config/cloudinary-config';
+import { AddressModule } from './modules/address/address.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import cloudinaryConfig from './config/cloudinary-config';
     AuthModule,
     ProductModule,
     CategoryModule,
+    AddressModule,
   ],
   controllers: [AppController],
   providers: [
