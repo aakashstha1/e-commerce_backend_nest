@@ -19,11 +19,12 @@ export class CreateUserDto {
   @MinLength(8)
   password!: string;
 
+  @IsOptional()
   @IsString()
   @Matches(/^[0-9]{10}$/, {
     message: 'Phone number must be 10 digits',
   })
-  phone!: string;
+  phone?: string;
 
   @IsOptional()
   @IsString()

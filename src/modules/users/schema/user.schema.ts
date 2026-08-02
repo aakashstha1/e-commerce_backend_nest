@@ -14,7 +14,7 @@ export class User {
   @Prop({ required: true, select: false })
   password!: string;
 
-  @Prop({ required: false, unique: true })
+  @Prop({ required: false })
   phone?: string;
 
   @Prop({ enum: UserRole, default: UserRole.USER })
@@ -31,3 +31,11 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User); //converts a TypeScript class (User) into a Mongoose schema.
+
+UserSchema.index(
+  { phone: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { phone: { $type: 'string', $ne: '' } },
+  },
+);
