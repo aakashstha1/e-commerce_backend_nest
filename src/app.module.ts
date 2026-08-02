@@ -19,6 +19,8 @@ import { ProductModule } from './modules/product/product.module';
 import { CategoryModule } from './modules/category/category.module';
 import cloudinaryConfig from './config/cloudinary-config';
 import { AddressModule } from './modules/address/address.module';
+import { CartModule } from './modules/cart/cart.module';
+import { WishlistModule } from './modules/wishlist/wishlist.module';
 
 @Module({
   imports: [
@@ -36,9 +38,11 @@ import { AddressModule } from './modules/address/address.module';
     }),
     UsersModule,
     AuthModule,
-    ProductModule,
     CategoryModule,
+    ProductModule,
     AddressModule,
+    CartModule,
+    WishlistModule,
   ],
   controllers: [AppController],
   providers: [
