@@ -23,12 +23,22 @@ import { CartModule } from './modules/cart/cart.module';
 import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { OrderModule } from './modules/order/order.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { PaymentModule } from './modules/payment/payment.module';
+import { ReviewModule } from './modules/review/review.module';
+import esewaConfig from './config/esewa-config';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [dbConfig, hashingConfig, jwtConfig, appConfig, cloudinaryConfig],
+      load: [
+        dbConfig,
+        hashingConfig,
+        jwtConfig,
+        appConfig,
+        cloudinaryConfig,
+        esewaConfig,
+      ],
       envFilePath: '.env',
     }),
     // DB connection
@@ -47,6 +57,8 @@ import { NotificationModule } from './modules/notification/notification.module';
     WishlistModule,
     OrderModule,
     NotificationModule,
+    PaymentModule,
+    ReviewModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,4 +1,5 @@
-import { IsMongoId, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString } from 'class-validator';
+import { OrderPaymentMethod } from '../schema/order.schema';
 
 export class CreateOrderDto {
   @IsMongoId()
@@ -8,4 +9,8 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   couponCode?: string;
+
+  @IsOptional()
+  @IsEnum(OrderPaymentMethod)
+  paymentMethod?: OrderPaymentMethod;
 }

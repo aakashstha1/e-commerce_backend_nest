@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -17,6 +18,7 @@ import { ParseObjectIdPipe } from 'src/common/pipes/parse-object-id.pipe';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { UserRole } from '../users/enums/user-role-enum';
+import { OrderPaymentMethod } from './schema/order.schema';
 
 @Controller('orders')
 export class OrderController {
@@ -25,6 +27,11 @@ export class OrderController {
   // Checkout: creates an order from the current cart
   @Post()
   checkout(@CurrentUser('userId') userId: string, @Body() dto: CreateOrderDto) {
+    if (dto.paymentMethod && dto.paymentMethod !== OrderPaymentMethod.COD) {
+      throw new BadRequestException(
+        'Online payment methods must be initiated via /payments/esewa/initiate, not /orders',
+      );
+    }
     return this.orderService.checkout(userId, dto);
   }
 

@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
+// import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -26,6 +27,19 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+
+  // Swagger / OpenAPI docs — mounted outside the versioned "api/v1" prefix so the
+  // docs URL stays stable even if the default API version changes later.
+  // const config = new DocumentBuilder()
+  //   .setTitle('E-Commerce API')
+  //   .setDescription('API documentation')
+  //   .setVersion('1.0')
+  //   .addBearerAuth() // JWT support
+  //   .build();
+
+  // const document = SwaggerModule.createDocument(app, config);
+
+  // SwaggerModule.setup('api/docs', app, document);
 
   const port = configService.get<number>('app.port') ?? 5000;
   await app.listen(port);

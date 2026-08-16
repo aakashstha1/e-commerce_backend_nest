@@ -33,7 +33,7 @@ export class WishlistService {
       .find({ wishlistId: wishlist._id })
       .populate(
         'productId',
-        'name slug thumbnailUrl price discountPrice stockQuantity',
+        'name slug thumbnail price discountPrice stockQuantity',
       )
       .exec();
     return { wishlist, items };
