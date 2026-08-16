@@ -21,6 +21,7 @@ import { AddressService } from '../address/address.service';
 import { ProductService } from '../product/product.service';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/schema/notification.schema';
+import { Types } from 'mongoose';
 
 const SHIPPING_FEE = 100; // flat rate; swap for a real shipping-rate calculator in production
 const TAX_RATE = 0.13; // e.g. Nepal VAT; make configurable per region in production
@@ -152,6 +153,41 @@ export class OrderService {
     }
   }
 
+  /**
+   * Read-only pricing preview for the current cart — no writes, no stock
+   * decrement, no Order created. Used by the eSewa flow to know how much to
+   * charge *before* an order exists (the order itself is only created once
+   * payment is confirmed). Mirrors the pricing math in `checkout()`; keep the
+   * two in sync if shipping/tax rules change.
+   */
+
+  async previewTotals(userId: string) {
+    const cart = await this.cartService.getOrCreateCart(userId);
+    const cartItems = await this.cartService.getCartItemsForCheckout(
+      cart._id.toString(),
+    );
+
+    if (cartItems.length === 0) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    let subTotal = 0;
+    for (const item of cartItems) {
+      const product = await this.productService.findOne(
+        item.productId.toString(),
+      );
+      const unitPrice = product.discountPrice ?? product.price;
+      subTotal += unitPrice * item.quantity;
+    }
+
+    const discount = 0;
+    const shippingFee = SHIPPING_FEE;
+    const tax = Math.round((subTotal - discount) * TAX_RATE * 100) / 100;
+    const total = subTotal - discount + shippingFee + tax;
+
+    return { subTotal, discount, shippingFee, tax, total };
+  }
+
   async getOrdersForUser(userId: string, query: QueryOrderDto) {
     const { page = 1, limit = 20, status } = query;
     const filter: Record<string, unknown> = { userId };
@@ -167,7 +203,7 @@ export class OrderService {
         .exec(),
       this.orderModel.countDocuments(filter).exec(),
     ]);
-
+    console.log(items);
     return {
       items,
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
@@ -190,6 +226,7 @@ export class OrderService {
         .exec(),
       this.orderModel.countDocuments(filter).exec(),
     ]);
+    console.log(items);
 
     return {
       items,
@@ -209,8 +246,8 @@ export class OrderService {
     }
 
     const items = await this.orderItemModel
-      .find({ orderId })
-      .populate('productId', 'name slug thumbnailUrl')
+      .find({ orderId: new Types.ObjectId(orderId) })
+      .populate('productId', 'name slug thumbnail')
       .exec();
 
     return { order, items };

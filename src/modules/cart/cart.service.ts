@@ -32,7 +32,7 @@ export class CartService {
       .find({ cartId: cart._id })
       .populate(
         'productId',
-        'name slug thumbnailUrl price discountPrice stockQuantity',
+        'name slug thumbnail price discountPrice stockQuantity',
       )
       .exec();
 

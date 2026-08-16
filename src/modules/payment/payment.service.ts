@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   BadRequestException,
   Injectable,
@@ -5,35 +6,55 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { v4 as uuidv4 } from 'uuid';
 import {
   Payment,
   PaymentDocument,
   PaymentMethod,
   PaymentTransactionStatus,
 } from './schema/payment.schema';
-import { InitiatePaymentDto } from './dto/initiate-payment.dto';
+
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { OrderService } from '../order/order.service';
-import { PaymentStatus } from '../order/schema/order.schema';
+import {
+  OrderPaymentMethod,
+  PaymentStatus,
+} from '../order/schema/order.schema';
+import { AddressService } from '../address/address.service';
 import { NotificationService } from '../notification/notification.service';
 import { NotificationType } from '../notification/schema/notification.schema';
+import { EsewaService } from './esewa/esewa.service';
+import { InitiatePaymentDto } from './dto/initiate-payment.dto';
+import {
+  PendingCheckout,
+  PendingCheckoutDocument,
+  PendingCheckoutStatus,
+} from './schema/pending-checkout.schema';
 
 @Injectable()
 export class PaymentService {
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
+    @InjectModel(PendingCheckout.name)
+    private pendingCheckoutModel: Model<PendingCheckoutDocument>,
     private readonly orderService: OrderService,
+    private readonly addressService: AddressService,
     private readonly notificationService: NotificationService,
+    private readonly esewaService: EsewaService,
   ) {}
 
   /**
-   * Starts a payment for an order.
-   * - COD: recorded as pending; gets marked paid on delivery via `markCodPaid`.
-   * - Gateway methods (stripe/esewa/khalti): in production this would call the
-   *   gateway's "create payment intent / initiate transaction" API and return a
-   *   redirect URL or client secret. Wire the real SDK call in `createGatewaySession`.
+   * COD only. Records a pending, cash-collected-on-delivery payment against an
+   * already-created order. Admin marks it paid manually once delivered (see
+   * `markCodPaid`) — that's the whole point of COD's payment tracking.
    */
   async initiate(userId: string, dto: InitiatePaymentDto) {
+    if (dto.method !== PaymentMethod.COD) {
+      throw new BadRequestException(
+        'Only Cash on Delivery can be initiated this way. Use /payments/esewa/initiate for online payment.',
+      );
+    }
+
     const { order } = await this.orderService.getOrderById(userId, dto.orderId);
 
     if (order.paymentStatus === PaymentStatus.PAID) {
@@ -43,45 +64,133 @@ export class PaymentService {
     const existing = await this.paymentModel
       .findOne({ orderId: dto.orderId })
       .exec();
-    if (existing && existing.status === PaymentTransactionStatus.PENDING) {
-      return existing; // idempotent: reuse pending payment record
-    }
+    if (existing) return existing;
 
-    const payment = await this.paymentModel.create({
+    return this.paymentModel.create({
       orderId: dto.orderId,
-      method: dto.method,
+      method: PaymentMethod.COD,
       amount: order.total,
       currency: 'NPR',
       status: PaymentTransactionStatus.PENDING,
     });
+  }
 
-    if (dto.method === PaymentMethod.COD) {
-      return payment;
+  /**
+   * Step 1 of the eSewa flow: validates the address + cart, prices the cart,
+   * and returns signed form fields for the frontend to auto-submit straight to
+   * eSewa's payment page. No Order is created yet — only a PendingCheckout
+   * "intent" record, so we can create the real Order once eSewa confirms
+   * payment succeeded.
+   */
+  async initiateEsewaCheckout(userId: string, addressId: string) {
+    await this.addressService.assertOwnership(userId, addressId);
+    const totals = await this.orderService.previewTotals(userId);
+
+    const transactionUuid = uuidv4();
+
+    await this.pendingCheckoutModel.create({
+      userId,
+      addressId,
+      amount: totals.total,
+      transactionUuid,
+      status: PendingCheckoutStatus.PENDING,
+    });
+
+    return this.esewaService.buildPaymentForm({
+      amount: totals.total,
+      transactionUuid,
+    });
+  }
+
+  /**
+   * eSewa redirects the browser here (GET, base64 `data` query param) once
+   * payment succeeds. Verifies the signature, then — only now — actually
+   * places the order (creates Order/OrderItems, decrements stock, clears
+   * cart) and records the payment as already paid.
+   */
+  async handleEsewaSuccess(base64Data: string) {
+    const decoded = this.esewaService.decodeAndVerify(base64Data);
+
+    if (decoded.status !== 'COMPLETE') {
+      await this.failPendingCheckout(decoded.transaction_uuid);
+      throw new BadRequestException(`eSewa payment status: ${decoded.status}`);
     }
 
-    // Placeholder for real gateway integration.
-    const gatewaySession = this.createGatewaySession(dto.method, payment);
-    return { payment, ...gatewaySession };
+    const pending = await this.pendingCheckoutModel
+      .findOne({
+        transactionUuid: decoded.transaction_uuid,
+        status: PendingCheckoutStatus.PENDING,
+      })
+      .exec();
+
+    if (!pending) {
+      throw new NotFoundException(
+        'No matching pending checkout found for this eSewa transaction',
+      );
+    }
+
+    const { order } = await this.orderService.checkout(
+      pending.userId.toString(),
+      {
+        addressId: pending.addressId.toString(),
+        paymentMethod: OrderPaymentMethod.ESEWA,
+      },
+    );
+
+    await this.paymentModel.create({
+      orderId: order._id,
+      method: PaymentMethod.ESEWA,
+      amount: Number(decoded.total_amount) || pending.amount,
+      currency: 'NPR',
+      status: PaymentTransactionStatus.PAID,
+      transactionUuid: decoded.transaction_uuid,
+      transactionId: decoded.transaction_code,
+      paidAt: new Date(),
+    });
+
+    await this.orderService.markPaymentStatus(
+      order._id.toString(),
+      PaymentStatus.PAID,
+    );
+
+    pending.status = PendingCheckoutStatus.CONSUMED;
+    pending.orderId = order._id;
+    await pending.save();
+
+    await this.notificationService.create(
+      order.userId.toString(),
+      NotificationType.PAYMENT_RECEIVED,
+      `Payment received for order ${order.orderNumber}.`,
+    );
+
+    return { orderId: order._id.toString(), orderNumber: order.orderNumber };
   }
 
-  /** Swap this stub for real Stripe/eSewa/Khalti SDK calls. */
-  private createGatewaySession(
-    method: PaymentMethod,
-    payment: PaymentDocument,
-  ) {
-    return {
-      redirectUrl: `https://payment-gateway.example.com/${method}/checkout?paymentId=${payment._id.toString()}`,
-      note: `Integrate the real ${method} SDK here (create payment intent / initiate eSewa or Khalti transaction).`,
-    };
+  /** eSewa redirects here (GET) if the user cancels or payment fails. */
+  async handleEsewaFailure(transactionUuid?: string) {
+    if (transactionUuid) {
+      await this.failPendingCheckout(transactionUuid);
+    }
+    return { status: 'failed' };
   }
 
-  /** Called by a (to-be-implemented) verified webhook handler once the gateway confirms payment. */
+  private async failPendingCheckout(transactionUuid?: string) {
+    if (!transactionUuid) return;
+    await this.pendingCheckoutModel
+      .updateOne(
+        { transactionUuid, status: PendingCheckoutStatus.PENDING },
+        { status: PendingCheckoutStatus.FAILED },
+      )
+      .exec();
+  }
+
+  /** Admin-only fallback: confirms an already-created payment (e.g. COD collected). */
   async confirmPayment(dto: ConfirmPaymentDto) {
     const payment = await this.paymentModel.findById(dto.paymentId).exec();
     if (!payment) throw new NotFoundException('Payment not found');
 
     payment.status = PaymentTransactionStatus.PAID;
-    payment.transactionId = dto.transactionId ?? payment.transactionId;
+    payment.transactionUuid = dto.transactionId ?? payment.transactionUuid;
     payment.paidAt = new Date();
     await payment.save();
 
@@ -134,6 +243,14 @@ export class PaymentService {
     }
 
     return this.confirmPayment({ paymentId });
+  }
+
+  /** Admin-only: same as `markCodPaid`, but looked up by orderId for UI convenience. */
+  async markCodPaidByOrder(orderId: string) {
+    const payment = await this.paymentModel.findOne({ orderId }).exec();
+    if (!payment)
+      throw new NotFoundException('Payment not found for this order');
+    return this.markCodPaid(payment._id.toString());
   }
 
   async getByOrder(userId: string, orderId: string, isAdmin: boolean) {

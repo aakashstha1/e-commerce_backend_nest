@@ -25,8 +25,8 @@ export class Payment {
   @Prop({ enum: PaymentMethod, required: true })
   method!: PaymentMethod;
 
-  @Prop({ type: String, default: null })
-  transactionId?: string | null;
+  // @Prop({ type: String, default: null })
+  // transactionId?: string | null;
 
   @Prop({ required: true, min: 0 })
   amount!: number;
@@ -39,6 +39,15 @@ export class Payment {
     default: PaymentTransactionStatus.PENDING,
   })
   status!: PaymentTransactionStatus;
+
+  @Prop({ type: String, default: null })
+  esewaBookingId?: string | null;
+
+  @Prop({ type: String, default: null })
+  esewaCorrelationId?: string | null;
+
+  @Prop({ type: String, default: null })
+  transactionUuid?: string | null;
 
   @Prop({ type: Date, default: null })
   paidAt?: Date | null;

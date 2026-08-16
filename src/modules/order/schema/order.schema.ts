@@ -16,6 +16,13 @@ export enum PaymentStatus {
   REFUNDED = 'refunded',
 }
 
+export enum OrderPaymentMethod {
+  COD = 'cod',
+  STRIPE = 'stripe',
+  ESEWA = 'esewa',
+  KHALTI = 'khalti',
+}
+
 export type OrderDocument = HydratedDocument<Order>;
 
 @Schema({ timestamps: { createdAt: false, updatedAt: true } })
@@ -49,6 +56,13 @@ export class Order {
 
   @Prop({ enum: PaymentStatus, default: PaymentStatus.PENDING, index: true })
   paymentStatus!: PaymentStatus;
+
+  @Prop({
+    enum: OrderPaymentMethod,
+    required: true,
+    default: OrderPaymentMethod.COD,
+  })
+  paymentMethod!: OrderPaymentMethod;
 
   @Prop({ default: () => new Date() })
   placedAt!: Date;
