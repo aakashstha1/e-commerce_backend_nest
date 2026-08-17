@@ -14,7 +14,7 @@ export default () => ({
     failureUrl: process.env.ESEWA_FAILURE_URL,
 
     // Where we then forward the user to in the actual app UI.
-    frontendSuccessUrl: process.env.ESEWA_FRONTEND_SUCCESS_URL,
-    frontendFailureUrl: process.env.ESEWA_FRONTEND_FAILURE_URL,
+    frontendSuccessUrl: process.env.PAYNENT_FRONTEND_SUCCESS_URL,
+    frontendFailureUrl: process.env.PAYNENT_FRONTEND_FAILURE_URL,
   },
 });

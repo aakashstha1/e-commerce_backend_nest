@@ -62,7 +62,8 @@ import esewaConfig from './config/esewa-config';
   ],
   controllers: [AppController],
   providers: [
-    AppService, // Every route requires a valid JWT access token unless annotated with @Public().
+    AppService,
+    // Every route requires a valid JWT access token unless annotated with @Public().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     // Normalizes all thrown errors into a consistent JSON error shape.
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
